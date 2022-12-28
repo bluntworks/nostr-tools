@@ -3,15 +3,17 @@
 import {Event, verifySignature, validateEvent} from './event'
 import {Filter, matchFilters} from './filter'
 
+type RelayEvent = 'connect' | 'disconnect' | 'error' | 'notice'
+
 export type Relay = {
   url: string
   status: number
-  connect: () => void
-  close: () => void
-  sub: (filters: Filter[], opts: SubscriptionOptions) => Sub
+  connect: () => Promise<void>
+  close: () => Promise<void>
+  sub: (filters: Filter[], opts?: SubscriptionOptions) => Sub
   publish: (event: Event) => Pub
-  on: (type: 'connect' | 'disconnect' | 'notice', cb: any) => void
-  off: (type: 'connect' | 'disconnect' | 'notice', cb: any) => void
+  on: (type: RelayEvent, cb: any) => void
+  off: (type: RelayEvent, cb: any) => void
 }
 export type Pub = {
   on: (type: 'ok' | 'seen' | 'failed', cb: any) => void
@@ -73,7 +75,7 @@ export function relayInit(url: string): Relay {
       }
       ws.onclose = async () => {
         listeners.disconnect.forEach(cb => cb())
-        resolveClose()
+        resolveClose && resolveClose()
       }
 
       ws.onmessage = async e => {
@@ -185,7 +187,7 @@ export function relayInit(url: string): Relay {
     url,
     sub,
     on: (
-      type: 'connect' | 'disconnect' | 'error' | 'notice',
+      type: RelayEvent,
       cb: any
     ): void => {
       listeners[type].push(cb)
@@ -194,7 +196,7 @@ export function relayInit(url: string): Relay {
       }
     },
     off: (
-      type: 'connect' | 'disconnect' | 'error' | 'notice',
+      type: RelayEvent,
       cb: any
     ): void => {
       let index = listeners[type].indexOf(cb)
@@ -258,7 +260,7 @@ export function relayInit(url: string): Relay {
     connect,
     close(): Promise<void> {
       ws.close()
-      return new Promise(resolve => {
+      return new Promise<void>(resolve => {
         resolveClose = resolve
       })
     },
